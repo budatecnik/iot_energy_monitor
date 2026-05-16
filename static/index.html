@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard - ESP32</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f9; }
+        .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 200px; }
+        h1 { color: #333; }
+        .val { font-size: 2em; font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <h1>Monitor de Sensores en Tiempo Real</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h3>Temperatura</h3>
+            <div id="temp-val" class="val">--</div><span>°C</span>
+        </div>
+        <div class="card">
+            <h3>Humedad</h3>
+            <div id="hum-val" class="val">--</div><span>%</span>
+        </div>
+        <div class="card">
+            <h3>Luz</h3>
+            <div id="luz-val" class="val">--</div>
+        </div>
+    </div>
+
+    <div style="width: 80%; margin: auto;">
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('grafico').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    borderColor: 'red',
+                    data: [],
+                    fill: false
+                }]
+            }
+        });
+
+        async function actualizarDatos() {
+            try {
+                // Consultamos el endpoint /historial que creaste en FastAPI
+                const response = await fetch('/historial');
+                const datos = await response.json();
+
+                if (datos.length > 0) {
+                    const ultimo = datos[datos.length - 1];
+                    
+                    // Actualizar etiquetas superiores
+                    document.getElementById('temp-val').innerText = ultimo.temperatura;
+                    document.getElementById('hum-val').innerText = ultimo.humedad;
+                    document.getElementById('luz-val').innerText = ultimo.luz ? "☀️ Luz" : "🌑 Oscuridad";
+
+                    // Actualizar Gráfico
+                    chart.data.labels = datos.map(d => d.timestamp.split(' ')[1]); // Solo la hora
+                    chart.data.datasets[0].data = datos.map(d => d.temperatura);
+                    chart.update();
+                }
+            } catch (error) {
+                console.error("Error buscando datos:", error);
+            }
+        }
+
+        // Ejecutar cada 5 segundos (Fetch Polling) para que no parpadee la pantalla
+        setInterval(actualizarDatos, 5000);
+        actualizarDatos();
+    </script>
+</body>
+</html>
